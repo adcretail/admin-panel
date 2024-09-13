@@ -12,7 +12,7 @@ interface Category {
 interface Product {
   id: string;
   productName: string;
-  categoryId: string;
+  brand: string;
   price: number;
   images: string[];
   description: string;
@@ -20,11 +20,13 @@ interface Product {
   expiryDate: string;
   listingDate: string;
   manufacturingDate: string;
-  marketPrice: string;
+  marketPrice: number;
   percentageOfDiscountOffered: string;
   seller: string;
-  stock: string;
+  stock: number;
   userId: string;
+  category: string;
+  deliveryInfo: string,
 }
 
 const AdminDashboard = () => {
@@ -84,34 +86,20 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleUpdateCategory = async (e: FormEvent) => {
-    e.preventDefault();
-    if (editingCategory) {
-      try {
-        const response = await fetch(`/api/categories/${editingCategory.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(editingCategory),
-        });
-
-        if (response.ok) {
-          setCategories(categories.map(cat => (cat.id === editingCategory.id ? editingCategory : cat)));
-          setEditingCategory(null);
-        } else {
-          console.error('Error updating category');
-        }
-      } catch (error) {
-        console.error('Error updating category:', error);
-      }
-    }
-  };
-
   const handleUpdateProduct = async (e: FormEvent) => {
     e.preventDefault();
     if (editingProduct) {
       try {
+        const productData = {
+          ...editingProduct,
+          price: parseFloat(editingProduct.price.toString()),
+          marketPrice: parseFloat(editingProduct.marketPrice.toString()),
+          stock: parseInt(editingProduct.stock.toString()),
+          manufacturingDate: new Date(editingProduct.manufacturingDate),
+          expiryDate: new Date(editingProduct.expiryDate),
+          listingDate: new Date(editingProduct.listingDate),
+        };
+
         const response = await fetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: {
@@ -121,13 +109,18 @@ const AdminDashboard = () => {
         });
 
         if (response.ok) {
+          const productRef = doc(db, 'products', editingProduct.id);
+          await updateDoc(productRef, productData);
           setProducts(products.map(prod => (prod.id === editingProduct.id ? editingProduct : prod)));
           setEditingProduct(null);
         } else {
-          console.error('Error updating product');
+          const errorData = await response.json();
+          console.error('Error updating product:', errorData);
+          alert('Error updating product');
         }
       } catch (error) {
         console.error('Error updating product:', error);
+        alert('Error updating product');
       }
     }
   };
@@ -179,28 +172,6 @@ const AdminDashboard = () => {
           </table>
         </div>
       </div>
-
-      {/* Update Category Form */}
-      {editingCategory && (
-        <form onSubmit={handleUpdateCategory} className="mb-8">
-          <h3 className="text-lg font-bold mb-2">Update Category</h3>
-          <div className="bg-white p-4 rounded shadow-md">
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2">Name</label>
-              <input
-                type="text"
-                name="categoryName"
-                value={editingCategory.categoryName}
-                onChange={handleCategoryChange}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-            <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">Save</button>
-            <button type="button" onClick={() => setEditingCategory(null)} className="ml-2 bg-gray-500 text-white px-4 py-2 rounded">Cancel</button>
-          </div>
-        </form>
-      )}
-
       {/* Products Section */}
       <div className="mb-8">
         <h2 className="text-xl font-bold mb-2">Products</h2>
@@ -221,7 +192,6 @@ const AdminDashboard = () => {
                 <tr key={product.id}>
                   <td className="py-2 px-4 border-b">{product.id}</td>
                   <td className="py-2 px-4 border-b">{product.productName}</td>
-                  <td className="py-2 px-4 border-b">{product.categoryId}</td>
                   <td className="py-2 px-4 border-b">{product.price}</td>
                   <td className="py-2 px-4 border-b">
                     {product.images.map((image, index) => (
@@ -255,16 +225,6 @@ const AdminDashboard = () => {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-gray-700 mb-2">Category ID</label>
-              <input
-                type="text"
-                name="categoryId"
-                value={editingProduct.categoryId}
-                onChange={handleProductChange}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-            <div className="mb-4">
               <label className="block text-gray-700 mb-2">Price</label>
               <input
                 type="number"
@@ -275,14 +235,126 @@ const AdminDashboard = () => {
               />
             </div>
             <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Market Price</label>
+              <input
+                type="number"
+                name="marketPrice"
+                value={editingProduct.marketPrice}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
               <label className="block text-gray-700 mb-2">Description</label>
-              <textarea
+              <input
+                type="text"
                 name="description"
                 value={editingProduct.description}
                 onChange={handleProductChange}
                 className="w-full p-2 border border-gray-300 rounded"
-              ></textarea>
+              />
             </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Seller</label>
+              <input
+                type="text"
+                name="seller"
+                value={editingProduct.seller}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Percentage of Discount Offered</label>
+              <input
+                type="number"
+                name="percentageofDiscountOffered"
+                value={editingProduct.percentageOfDiscountOffered}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Brand</label>
+              <input
+                type="text"
+                name="brand"
+                value={editingProduct.brand}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Stock</label>
+              <input
+                type="number"
+                name="stock"
+                value={editingProduct.stock}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Category</label>
+              <input
+                type="text"
+                name="category"
+                value={editingProduct.category}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">EMI</label>
+              <input
+                type="number"
+                name="emi"
+                value={editingProduct.emi}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Delivery Info</label>
+              <input
+                type="date"
+                name="deliveryInfo"
+                value={editingProduct.deliveryInfo}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Manufacturing Date</label>
+              <input
+                type="date"
+                name="manufacturingDate"
+                value={editingProduct.manufacturingDate}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Expiry Date</label>
+              <input
+                type="date"
+                name="expiryDate"
+                value={editingProduct.expiryDate}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Listing Date</label>
+              <input
+                type="date"
+                name="listingDate"
+                value={editingProduct.listingDate}
+                onChange={handleProductChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+            
             {/* Add additional fields as necessary */}
             <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">Save</button>
             <button type="button" onClick={() => setEditingProduct(null)} className="ml-2 bg-gray-500 text-white px-4 py-2 rounded">Cancel</button>
