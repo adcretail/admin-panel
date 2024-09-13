@@ -1,28 +1,56 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { db } from '@/app/firebase';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import prisma from '@/lib/prisma';
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
-  const { id } = req.query;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'PUT') {
+        res.status(405).send({ message: 'Only PUT requests allowed' });
+        return;
+    }
 
-  if (req.method === 'PUT') {
+    const { id } = req.query;
+    const {
+        productName,
+        price,
+        marketPrice,
+        brand,
+        seller,
+        description,
+        manufacturingDate,
+        expiryDate,
+        listingDate,
+        percentageOfDiscountOffered,
+        stock,
+        category,
+        deliveryInfo,
+        emi,
+        images,
+    } = req.body;
+    console.log(req.body);
     try {
-      const productRef = doc(db, 'products', id as string);
-      await updateDoc(productRef, req.body);
-      res.status(200).json({ message: 'Product updated successfully' });
+        const updatedProduct = await prisma.product.update({
+            where: { id: String(id) },
+            data: {
+              productName,
+              price: parseFloat(price), // Convert price to Float
+              marketPrice: parseFloat(marketPrice), // Convert marketPrice to Float
+              brand,
+              seller,
+              description,
+              manufacturingDate: new Date(manufacturingDate), // Convert to Date object
+              expiryDate: new Date(expiryDate), // Convert to Date object
+              listingDate: new Date(listingDate), // Convert to Date object
+              percentageOfDiscountOffered: parseFloat(percentageOfDiscountOffered),
+              stock: parseInt(stock), // Convert stock to Integer
+              category,
+              deliveryInfo,
+              emi,
+              images,
+            },
+        });
+
+        res.status(200).json({ message: 'Product updated successfully', updatedProduct });
     } catch (error) {
-      res.status(500).json({ message: 'Error updating product', error });
+        console.error('Error updating product:', error);
+        res.status(500).json({ message: 'Error updating product', error });
     }
-  } else if (req.method === 'DELETE') {
-    try {
-      const productRef = doc(db, 'products', id as string);
-      await deleteDoc(productRef);
-      res.status(200).json({ message: 'Product deleted successfully' });
-    } catch (error) {
-      res.status(500).json({ message: 'Error deleting product', error });
-    }
-  } else {
-    res.setHeader('Allow', ['PUT', 'DELETE']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
-  }
-};
+}
